@@ -1,0 +1,33 @@
+{
+  "name": "@graphrapids/graph-autocomplete-core",
+  "version": "0.1.0",
+  "description": "Reusable editor-agnostic autocomplete core for GraphRapids YAML graph authoring.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
+    "esbuild": "^0.25.10",
+    "vitest": "^4.0.8"
+  },
+  "license": "Apache-2.0"
+}

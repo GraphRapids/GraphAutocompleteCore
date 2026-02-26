@@ -19,7 +19,8 @@ Reusable editor-agnostic autocomplete core for GraphRapids YAML graph authoring.
 - Deterministic key/value suggestion generation
 - Profile-driven type catalogs (`nodeTypes`, `linkTypes`) via explicit interfaces
 - Metadata extraction from document text (entity lookup and root-section presence)
-- Indentation-aware utility helpers for editor backspace behavior
+- Editor-agnostic action planners for `Enter`/`Backspace` authoring flows
+- Completion command behavior helpers (`resolveCompletionCommandBehavior`)
 - Pure JavaScript logic with no React/Monaco runtime dependency
 
 ## Profile Catalog Contract

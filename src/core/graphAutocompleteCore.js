@@ -61,7 +61,7 @@ const KEY_DOCUMENTATION = {
   nodes: 'Collection of graph nodes. Supports nested nodes and nested links.',
   links: 'Collection of graph links/edges. Use from/to as node[:port] references.',
   name: 'Display name for a node. Also used as a default endpoint identifier.',
-  type: 'Domain node/link type. Node types are schema-driven plus built-in defaults.',
+  type: 'Domain node/link type. Type suggestions are profile-driven.',
   from: 'Link source endpoint in node or node:port format.',
   to: 'Link destination endpoint in node or node:port format.',
   label: 'Optional display label for links.',
@@ -517,6 +517,33 @@ export function buildYamlSuggestionInsertText({
   };
 }
 
+export function resolveCompletionCommandBehavior(context, suggestion) {
+  const normalizedItem = String(suggestion || '');
+  const trimmedItem = normalizedItem.trim();
+  const suggestionKey = trimmedItem.replace(/^\-\s+/, '').trim();
+  const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, '');
+  const isKeyLikeContext = context.kind === 'key' || context.kind === 'itemKey';
+  const isTypeValueContext = context.kind === 'nodeTypeValue' || context.kind === 'linkTypeValue';
+  const isEndpointValueContext = context.kind === 'endpointValue';
+  const keyToken = context.kind === 'itemKey' || context.kind === 'rootItemKey' ? normalizedSuggestionKey : suggestion;
+  const shouldTriggerSuggest =
+    (isKeyLikeContext && ['type', 'from', 'to'].includes(keyToken)) ||
+    isTypeValueContext ||
+    (isEndpointValueContext && normalizedItem !== ':');
+
+  return {
+    keyToken,
+    shouldTriggerSuggest,
+    title: shouldTriggerSuggest
+      ? isTypeValueContext
+        ? 'Trigger Next Step Suggestions'
+        : keyToken === 'type'
+          ? 'Trigger Type Suggestions'
+          : 'Trigger Endpoint Suggestions'
+      : '',
+  };
+}
+
 export function getYamlAutocompleteSuggestions(context, meta = {}) {
   const spec = meta.spec || DEFAULT_AUTOCOMPLETE_SPEC;
   const profileCatalog = createProfileCatalog(meta.profileCatalog || {});
@@ -595,6 +622,173 @@ export function getYamlAutocompleteSuggestions(context, meta = {}) {
   }
 
   return [];
+}
+
+export function resolveAutocompleteMetadataCache({
+  text,
+  version = null,
+  cache = createEmptyCompletionMetaCache(),
+  latestDocumentState = null,
+}) {
+  if (cache.version === version && cache.text === text) {
+    return { meta: cache.meta, cache };
+  }
+
+  const meta =
+    latestDocumentState && latestDocumentState.text === text
+      ? {
+          lines: text.split('\n'),
+          entities: latestDocumentState.entities,
+          rootSectionPresence: collectRootSectionPresence(text.split('\n'), latestDocumentState.parsedGraph),
+        }
+      : buildAutocompleteMetadata(text);
+
+  return {
+    meta,
+    cache: {
+      version,
+      text,
+      meta,
+    },
+  };
+}
+
+export function resolveYamlAutocompleteAtPosition({
+  text,
+  lineNumber,
+  column,
+  meta,
+  profileCatalog = EMPTY_PROFILE_CATALOG,
+  nodeTypeSuggestions = [],
+  linkTypeSuggestions = [],
+  spec = DEFAULT_AUTOCOMPLETE_SPEC,
+}) {
+  const runtime = buildAutocompleteRuntimeFromMeta(text, lineNumber, column, meta);
+  const suggestions = getYamlAutocompleteSuggestions(runtime.context, {
+    objectKeys: runtime.objectKeys,
+    itemContextKeys: runtime.itemContextKeys,
+    canContinueItemContext: runtime.canContinueItemContext,
+    entities: runtime.entities,
+    rootSectionPresence: meta.rootSectionPresence,
+    profileCatalog,
+    nodeTypeSuggestions,
+    linkTypeSuggestions,
+    spec,
+  });
+
+  return { runtime, suggestions };
+}
+
+export function planYamlEnterKeyAction({ text, lineNumber, column, indentSize = INDENT_SIZE }) {
+  const lines = text.split('\n');
+  while (lineNumber > lines.length) {
+    lines.push('');
+  }
+  const safeLineNumber = Math.max(1, Math.min(lineNumber, lines.length));
+  const currentLine = lines[safeLineNumber - 1] || '';
+  const context = getYamlAutocompleteContext(text, safeLineNumber, column);
+  const endpointValue = String(context.prefix || '').trim();
+  const valueHasColon = endpointValue.includes(':');
+  const portPart = valueHasColon ? endpointValue.split(':').slice(1).join(':').trim() : '';
+  const canAdvanceEndpoint = endpointValue.length > 0 && (!valueHasColon || portPart.length > 0);
+
+  if (
+    context.kind === 'endpointValue' &&
+    context.section === 'links' &&
+    (context.endpoint === 'from' || context.endpoint === 'to') &&
+    canAdvanceEndpoint
+  ) {
+    const baseIndent = lineIndent(currentLine);
+    const nextIndent =
+      context.endpoint === 'from'
+        ? /^\s*-\s*/.test(currentLine)
+          ? baseIndent + indentSize
+          : baseIndent
+        : Math.max(0, baseIndent - indentSize);
+
+    if (context.endpoint === 'from') {
+      return {
+        shouldHandle: true,
+        editId: 'link-from-next-to',
+        insertText: `\n${' '.repeat(nextIndent)}to: `,
+        triggerSource: 'enter-next-to',
+      };
+    }
+
+    return {
+      shouldHandle: true,
+      editId: 'link-to-next-step',
+      insertText: `\n${' '.repeat(nextIndent)}`,
+      triggerSource: 'enter-next-to',
+    };
+  }
+
+  const trimmedCurrentLine = currentLine.trim();
+  const linkLabelValueMatch = trimmedCurrentLine.match(/^(?:-\s*)?label:\s*(.+)$/);
+  if (
+    context.section === 'links' &&
+    linkLabelValueMatch &&
+    String(linkLabelValueMatch[1] || '').trim().length > 0
+  ) {
+    const baseIndent = lineIndent(currentLine);
+    const nextIndent = /^\s*-\s*/.test(currentLine) ? baseIndent : Math.max(indentSize, baseIndent - indentSize);
+    return {
+      shouldHandle: true,
+      editId: 'link-label-next-step',
+      insertText: `\n${' '.repeat(nextIndent)}`,
+      triggerSource: 'enter-after-label',
+    };
+  }
+
+  return {
+    shouldHandle: false,
+    editId: '',
+    insertText: '',
+    triggerSource: 'enter',
+  };
+}
+
+export function planYamlBackspaceKeyAction({ text, lineNumber, column, indentSize = INDENT_SIZE }) {
+  const lines = text.split('\n');
+  while (lineNumber > lines.length) {
+    lines.push('');
+  }
+
+  const safeLineNumber = Math.max(1, Math.min(lineNumber, lines.length));
+  const currentLine = lines[safeLineNumber - 1] || '';
+  const currentLineIndex = safeLineNumber - 1;
+  const currentLineIndent = lineIndent(currentLine);
+  const currentSection = inferYamlSection(lines, currentLineIndex, currentLineIndent).section;
+  const shouldUseRootBoundaryHandling = isRootBoundaryEmptyLine(lines, currentLineIndex) && currentSection === 'root';
+
+  if (shouldUseRootBoundaryHandling) {
+    return {
+      shouldHandle: true,
+      editId: 'root-boundary-backspace',
+      deleteStartColumn: 1,
+      deleteEndColumn: Math.max(1, column),
+      triggerSource: 'backspace-root-boundary',
+    };
+  }
+
+  const deleteCount = computeIndentBackspaceDeleteCount(currentLine, column, indentSize);
+  if (deleteCount <= 0) {
+    return {
+      shouldHandle: false,
+      editId: '',
+      deleteStartColumn: column,
+      deleteEndColumn: column,
+      triggerSource: 'backspace',
+    };
+  }
+
+  return {
+    shouldHandle: true,
+    editId: 'indent-backspace',
+    deleteStartColumn: Math.max(1, column - deleteCount),
+    deleteEndColumn: column,
+    triggerSource: 'backspace',
+  };
 }
 
 export function computeIndentBackspaceDeleteCount(lineContent, column, indentSize = INDENT_SIZE) {

@@ -12,6 +12,11 @@ import {
   INDENT_SIZE,
   inferYamlSection,
   isRootBoundaryEmptyLine,
+  planYamlBackspaceKeyAction,
+  planYamlEnterKeyAction,
+  resolveAutocompleteMetadataCache,
+  resolveCompletionCommandBehavior,
+  resolveYamlAutocompleteAtPosition,
 } from './graphAutocompleteCore.js';
 
 describe('graph autocomplete core', () => {
@@ -148,5 +153,117 @@ describe('graph autocomplete core', () => {
     );
 
     expect(nodeSuggestions).toEqual(['edge-device']);
+  });
+
+  it('resolves autocomplete for a position with runtime and suggestions', () => {
+    const text = 'nodes:\n  - name: A\n    type: ro';
+    const { meta } = resolveAutocompleteMetadataCache({
+      text,
+      version: 1,
+    });
+
+    const { runtime, suggestions } = resolveYamlAutocompleteAtPosition({
+      text,
+      lineNumber: 3,
+      column: 13,
+      meta,
+      profileCatalog: createProfileCatalog({
+        profileId: 'default',
+        profileVersion: 1,
+        checksum: 'abc',
+        nodeTypes: ['router'],
+      }),
+    });
+
+    expect(runtime.context).toEqual({ kind: 'nodeTypeValue', section: 'nodes', prefix: 'ro' });
+    expect(suggestions).toEqual(['router']);
+  });
+
+  it('plans enter key transitions for link endpoint and label values', () => {
+    const fromPlan = planYamlEnterKeyAction({
+      text: 'links:\n  - from: A',
+      lineNumber: 2,
+      column: 12,
+    });
+    expect(fromPlan).toEqual({
+      shouldHandle: true,
+      editId: 'link-from-next-to',
+      insertText: '\n    to: ',
+      triggerSource: 'enter-next-to',
+    });
+
+    const toPlan = planYamlEnterKeyAction({
+      text: 'links:\n  - from: A\n    to: B',
+      lineNumber: 3,
+      column: 10,
+    });
+    expect(toPlan).toEqual({
+      shouldHandle: true,
+      editId: 'link-to-next-step',
+      insertText: '\n  ',
+      triggerSource: 'enter-next-to',
+    });
+
+    const labelPlan = planYamlEnterKeyAction({
+      text: 'links:\n  - from: A\n    to: B\n    label: hello',
+      lineNumber: 4,
+      column: 17,
+    });
+    expect(labelPlan).toEqual({
+      shouldHandle: true,
+      editId: 'link-label-next-step',
+      insertText: '\n  ',
+      triggerSource: 'enter-after-label',
+    });
+  });
+
+  it('plans backspace handling for root-boundary and indentation deletes', () => {
+    const rootPlan = planYamlBackspaceKeyAction({
+      text: 'nodes:\n  - name: A\n',
+      lineNumber: 3,
+      column: 1,
+    });
+    expect(rootPlan).toEqual({
+      shouldHandle: true,
+      editId: 'root-boundary-backspace',
+      deleteStartColumn: 1,
+      deleteEndColumn: 1,
+      triggerSource: 'backspace-root-boundary',
+    });
+
+    const indentPlan = planYamlBackspaceKeyAction({
+      text: 'nodes:\n  - name: A\n    ',
+      lineNumber: 3,
+      column: 5,
+    });
+    expect(indentPlan).toEqual({
+      shouldHandle: true,
+      editId: 'indent-backspace',
+      deleteStartColumn: 3,
+      deleteEndColumn: 5,
+      triggerSource: 'backspace',
+    });
+  });
+
+  it('resolves completion command behavior for suggestion follow-ups', () => {
+    const nodeTypeBehavior = resolveCompletionCommandBehavior(
+      { kind: 'nodeTypeValue', section: 'nodes', prefix: 'ro' },
+      'router'
+    );
+    expect(nodeTypeBehavior.shouldTriggerSuggest).toBe(true);
+    expect(nodeTypeBehavior.title).toBe('Trigger Next Step Suggestions');
+
+    const endpointBehavior = resolveCompletionCommandBehavior(
+      { kind: 'endpointValue', section: 'links', endpoint: 'from', prefix: 'A' },
+      ':'
+    );
+    expect(endpointBehavior.shouldTriggerSuggest).toBe(false);
+
+    const keyBehavior = resolveCompletionCommandBehavior(
+      { kind: 'itemKey', section: 'links', prefix: '' },
+      '  from'
+    );
+    expect(keyBehavior.shouldTriggerSuggest).toBe(true);
+    expect(keyBehavior.title).toBe('Trigger Endpoint Suggestions');
   });
 });

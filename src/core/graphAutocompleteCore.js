@@ -8,7 +8,7 @@ const ROOT_SECTION_ALIASES = new Map([['edges', 'links']]);
 export const NODE_TYPE_SUGGESTIONS = [];
 export const LINK_TYPE_SUGGESTIONS = [];
 export const EMPTY_PROFILE_CATALOG = Object.freeze({
-  schemaVersion: 'v2',
+  schemaVersion: 'v1',
   profileId: '',
   profileVersion: 0,
   profileChecksum: '',
@@ -57,7 +57,7 @@ export function createProfileCatalog(input = {}) {
     : [];
 
   return {
-    schemaVersion: String(input.schemaVersion || 'v2'),
+    schemaVersion: String(input.schemaVersion || 'v1'),
     profileId: String(input.profileId || ''),
     profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
     profileChecksum,

@@ -406,6 +406,117 @@ function endpointSuggestions(prefix, entities, endpoint) {
   return nodeNames.filter((name) => String(name).toLowerCase().startsWith(normalizedPrefix));
 }
 
+export function buildYamlSuggestionInsertText({
+  context,
+  suggestion,
+  spec = DEFAULT_AUTOCOMPLETE_SPEC,
+  indentSize = INDENT_SIZE,
+  lines = [],
+  lineNumber = 1,
+  currentLine = '',
+}) {
+  const normalizedItem = String(suggestion || '');
+  const trimmedItem = normalizedItem.trim();
+  const isItemStartLabel = /^-\s+/.test(trimmedItem);
+  const suggestionKey = trimmedItem.replace(/^-\s+/, '').trim();
+  const normalizedSuggestionKey = suggestionKey.replace(/:\s*$/, '');
+  const safeLines = Array.isArray(lines) && lines.length > 0 ? lines : [String(currentLine || '')];
+  const safeLineIndex = Math.max(0, Math.min(Number(lineNumber) - 1, safeLines.length - 1));
+  const resolvedCurrentLine = String(currentLine || safeLines[safeLineIndex] || '');
+  const currentIndent = lineIndent(resolvedCurrentLine);
+
+  if (context.kind === 'rootKey') {
+    const nextKey =
+      normalizedItem === 'nodes'
+        ? spec.node.entryStartKey
+        : spec.link.entryStartKey;
+    return {
+      insertText: `${normalizedItem}:\n${' '.repeat(indentSize)}- ${nextKey}: `,
+      insertAsSnippet: false,
+    };
+  }
+
+  if (context.kind === 'rootItemKey') {
+    const rootKey = normalizedSuggestionKey;
+    const nextKey =
+      rootKey === 'nodes'
+        ? spec.node.entryStartKey
+        : spec.link.entryStartKey;
+    return {
+      insertText: `${rootKey}:\n${' '.repeat(indentSize)}- ${nextKey}: `,
+      insertAsSnippet: false,
+    };
+  }
+
+  if (context.kind === 'itemKey') {
+    const sectionInfo = inferYamlSection(safeLines, safeLineIndex, lineIndent(resolvedCurrentLine));
+    const desiredIndent = sectionInfo.sectionIndent + indentSize;
+    if (isItemStartLabel) {
+      return {
+        insertText: `${' '.repeat(desiredIndent)}- ${suggestionKey}: `,
+        insertAsSnippet: false,
+      };
+    }
+
+    const isCollectionKey = suggestionKey === 'nodes' || suggestionKey === 'links';
+    if (isCollectionKey) {
+      const nextKey =
+        suggestionKey === 'nodes'
+          ? spec.node.entryStartKey
+          : spec.link.entryStartKey;
+      const isBoundaryLineAtItemIndent = resolvedCurrentLine.trim().length === 0 && currentIndent === desiredIndent;
+      const shouldDedentToParentCollection = isBoundaryLineAtItemIndent && sectionInfo.sectionIndent > 0;
+      const collectionKeyIndent = shouldDedentToParentCollection ? sectionInfo.sectionIndent : desiredIndent + indentSize;
+      const collectionItemIndent = collectionKeyIndent + indentSize;
+      return {
+        insertText: `${' '.repeat(collectionKeyIndent)}${suggestionKey}:\n${' '.repeat(collectionItemIndent)}- ${nextKey}: `,
+        insertAsSnippet: false,
+      };
+    }
+
+    return {
+      insertText: `${' '.repeat(desiredIndent + indentSize)}${suggestionKey}: `,
+      insertAsSnippet: false,
+    };
+  }
+
+  if (context.kind === 'key') {
+    if (trimmedItem === 'nodes' || trimmedItem === 'links') {
+      const nextKey =
+        trimmedItem === 'nodes'
+          ? spec.node.entryStartKey
+          : spec.link.entryStartKey;
+      return {
+        insertText: `${trimmedItem}:\n${' '.repeat(indentSize)}- ${nextKey}: `,
+        insertAsSnippet: false,
+      };
+    }
+    return {
+      insertText: `${trimmedItem}: `,
+      insertAsSnippet: false,
+    };
+  }
+
+  if (context.kind === 'endpointValue' && normalizedItem === ':') {
+    return {
+      insertText: ':',
+      insertAsSnippet: false,
+    };
+  }
+
+  if (context.kind === 'nodeTypeValue' || context.kind === 'linkTypeValue') {
+    return {
+      insertText: `${normalizedItem}\n$0`,
+      insertAsSnippet: true,
+    };
+  }
+
+  return {
+    insertText: normalizedItem,
+    insertAsSnippet: false,
+  };
+}
+
 export function getYamlAutocompleteSuggestions(context, meta = {}) {
   const spec = meta.spec || DEFAULT_AUTOCOMPLETE_SPEC;
   const profileCatalog = createProfileCatalog(meta.profileCatalog || {});

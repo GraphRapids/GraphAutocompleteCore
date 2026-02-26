@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildYamlSuggestionInsertText,
   buildAutocompleteMetadata,
   buildAutocompleteRuntimeFromMeta,
   computeIndentBackspaceDeleteCount,
@@ -59,6 +60,46 @@ describe('graph autocomplete core', () => {
       rootSectionPresence: meta.rootSectionPresence,
     });
     expect(suggestions).toEqual(['- name', '  type', '  ports', '  nodes', '  links']);
+  });
+
+  it('builds collection-key insertion at nested boundary line using parent indent', () => {
+    const text =
+      'nodes:\n  - name: node-1\n    type: router\n  - name: subgraph\n    nodes:\n      - name: subnode-1\n      - name: subnode-2\n      ';
+    const meta = buildAutocompleteMetadata(text);
+    const runtime = buildAutocompleteRuntimeFromMeta(text, 8, 7, meta);
+    const suggestions = getYamlAutocompleteSuggestions(runtime.context, {
+      spec: DEFAULT_AUTOCOMPLETE_SPEC,
+      itemContextKeys: runtime.itemContextKeys,
+      canContinueItemContext: runtime.canContinueItemContext,
+      entities: runtime.entities,
+      rootSectionPresence: meta.rootSectionPresence,
+    });
+
+    const insertion = buildYamlSuggestionInsertText({
+      context: runtime.context,
+      suggestion: suggestions.find((item) => item === '  links'),
+      spec: DEFAULT_AUTOCOMPLETE_SPEC,
+      indentSize: INDENT_SIZE,
+      lines: meta.lines,
+      lineNumber: 8,
+      currentLine: '      ',
+    });
+
+    expect(insertion.insertText).toBe('    links:\n      - from: ');
+  });
+
+  it('builds collection-key insertion under current item context when not on boundary', () => {
+    const insertion = buildYamlSuggestionInsertText({
+      context: { kind: 'itemKey', section: 'nodes', prefix: 'no' },
+      suggestion: '  nodes',
+      spec: DEFAULT_AUTOCOMPLETE_SPEC,
+      indentSize: INDENT_SIZE,
+      lines: ['nodes:', '  - name: node-1', '    no'],
+      lineNumber: 3,
+      currentLine: '    no',
+    });
+
+    expect(insertion.insertText).toBe('    nodes:\n      - name: ');
   });
 
   it('computes indentation-aware backspace delete count', () => {

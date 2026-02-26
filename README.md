@@ -31,6 +31,7 @@ The core no longer owns hardcoded node/link catalogs. Consumers should pass runt
 - `getYamlAutocompleteSuggestions(context, { profileCatalog })`
 
 `profileVersion` + `checksum` are preserved for deterministic cache invalidation in adapters.
+V2 runtime catalogs may additionally provide `profileChecksum`, `iconsetResolutionChecksum`, and `iconsetSources`.
 
 ## Repository Layout
 

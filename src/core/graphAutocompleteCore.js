@@ -8,12 +8,15 @@ const ROOT_SECTION_ALIASES = new Map([['edges', 'links']]);
 export const NODE_TYPE_SUGGESTIONS = [];
 export const LINK_TYPE_SUGGESTIONS = [];
 export const EMPTY_PROFILE_CATALOG = Object.freeze({
-  schemaVersion: 'v1',
+  schemaVersion: 'v2',
   profileId: '',
   profileVersion: 0,
+  profileChecksum: '',
+  iconsetResolutionChecksum: '',
   checksum: '',
   nodeTypes: [],
   linkTypes: [],
+  iconsetSources: [],
 });
 
 export function normalizeCatalogValues(values = []) {
@@ -33,13 +36,36 @@ export function normalizeCatalogValues(values = []) {
 }
 
 export function createProfileCatalog(input = {}) {
+  const profileChecksum = String(input.profileChecksum || input.checksum || '');
+  const checksum = String(input.checksum || profileChecksum || '');
+  const iconsetSources = Array.isArray(input.iconsetSources)
+    ? input.iconsetSources
+        .map((item) => {
+          if (!item || typeof item !== 'object') {
+            return null;
+          }
+          const iconsetId = String(item.iconsetId || '')
+            .trim()
+            .toLowerCase();
+          const iconsetVersion = Number.isFinite(item.iconsetVersion) ? Number(item.iconsetVersion) : 0;
+          if (!iconsetId || iconsetVersion <= 0) {
+            return null;
+          }
+          return { iconsetId, iconsetVersion };
+        })
+        .filter(Boolean)
+    : [];
+
   return {
-    schemaVersion: String(input.schemaVersion || 'v1'),
+    schemaVersion: String(input.schemaVersion || 'v2'),
     profileId: String(input.profileId || ''),
     profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
-    checksum: String(input.checksum || ''),
+    profileChecksum,
+    iconsetResolutionChecksum: String(input.iconsetResolutionChecksum || ''),
+    checksum,
     nodeTypes: normalizeCatalogValues(input.nodeTypes),
     linkTypes: normalizeCatalogValues(input.linkTypes),
+    iconsetSources,
   };
 }
 

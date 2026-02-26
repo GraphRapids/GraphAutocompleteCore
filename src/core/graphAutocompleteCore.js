@@ -5,69 +5,43 @@ export const INDENT_SIZE = 2;
 const FORBIDDEN_AUTOCOMPLETE_KEYS = new Set(['id']);
 const ROOT_SECTION_ALIASES = new Map([['edges', 'links']]);
 
-export const NODE_TYPE_SUGGESTIONS = [
-  'router',
-  'switch',
-  'mpls',
-  'vpn',
-  'firewall',
-  'cloud',
-  'datacenter',
-  'azure',
-  'internet',
-  'cpe',
-  'database',
-  'server',
-  'host',
-  'ran',
-  'radio',
-  'splitter',
-  'devices',
-  'satelliteuplink',
-  'satellite',
-  'broadcast',
-  'lan',
-  'diagnostics',
-  'analytics',
-  'monitor',
-  'logging',
-  'iam',
-  'idea',
-  'tools',
-  'cctv',
-  'process',
-  'cooling',
-  'security',
-  'console',
-  'gis',
-  'city',
-  'settlement',
-  'sdu',
-  'mdu',
-  'company',
-  'farm',
-  'airport',
-  'mine',
-  'fieldservice',
-  'facility',
-  'energy',
-  'transmission',
-  'ip',
-  'mobilecore',
-  'access',
-  'operation',
-  'controller',
-  'product',
-  'consumer',
-  'fortinet',
-  'juniper',
-  'ericsson',
-  'huawei',
-  'cisco',
-  'mikrotik',
-];
+export const NODE_TYPE_SUGGESTIONS = [];
+export const LINK_TYPE_SUGGESTIONS = [];
+export const EMPTY_PROFILE_CATALOG = Object.freeze({
+  schemaVersion: 'v1',
+  profileId: '',
+  profileVersion: 0,
+  checksum: '',
+  nodeTypes: [],
+  linkTypes: [],
+});
 
-export const LINK_TYPE_SUGGESTIONS = ['directed', 'undirected', 'association', 'dependency', 'generalization', 'none'];
+export function normalizeCatalogValues(values = []) {
+  const result = [];
+  const seen = new Set();
+  for (const raw of values) {
+    const normalized = String(raw || '')
+      .trim()
+      .toLowerCase();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+}
+
+export function createProfileCatalog(input = {}) {
+  return {
+    schemaVersion: String(input.schemaVersion || 'v1'),
+    profileId: String(input.profileId || ''),
+    profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
+    checksum: String(input.checksum || ''),
+    nodeTypes: normalizeCatalogValues(input.nodeTypes),
+    linkTypes: normalizeCatalogValues(input.linkTypes),
+  };
+}
 
 export const DEFAULT_AUTOCOMPLETE_SPEC = {
   rootSections: ['nodes', 'links'],
@@ -434,14 +408,19 @@ function endpointSuggestions(prefix, entities, endpoint) {
 
 export function getYamlAutocompleteSuggestions(context, meta = {}) {
   const spec = meta.spec || DEFAULT_AUTOCOMPLETE_SPEC;
+  const profileCatalog = createProfileCatalog(meta.profileCatalog || {});
   const nodeTypes =
     Array.isArray(meta.nodeTypeSuggestions) && meta.nodeTypeSuggestions.length
-      ? meta.nodeTypeSuggestions
-      : NODE_TYPE_SUGGESTIONS;
+      ? normalizeCatalogValues(meta.nodeTypeSuggestions)
+      : profileCatalog.nodeTypes.length
+        ? profileCatalog.nodeTypes
+        : NODE_TYPE_SUGGESTIONS;
   const linkTypes =
     Array.isArray(meta.linkTypeSuggestions) && meta.linkTypeSuggestions.length
-      ? meta.linkTypeSuggestions
-      : LINK_TYPE_SUGGESTIONS;
+      ? normalizeCatalogValues(meta.linkTypeSuggestions)
+      : profileCatalog.linkTypes.length
+        ? profileCatalog.linkTypes
+        : LINK_TYPE_SUGGESTIONS;
 
   if (context.kind === 'nodeTypeValue') {
     return nodeTypes.filter((item) => item.startsWith((context.prefix || '').toLowerCase()));

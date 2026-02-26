@@ -17,9 +17,19 @@ Reusable editor-agnostic autocomplete core for GraphRapids YAML graph authoring.
 
 - YAML cursor context analysis (`rootKey`, `itemKey`, `endpointValue`, `type` contexts)
 - Deterministic key/value suggestion generation
+- Profile-driven type catalogs (`nodeTypes`, `linkTypes`) via explicit interfaces
 - Metadata extraction from document text (entity lookup and root-section presence)
 - Indentation-aware utility helpers for editor backspace behavior
 - Pure JavaScript logic with no React/Monaco runtime dependency
+
+## Profile Catalog Contract
+
+The core no longer owns hardcoded node/link catalogs. Consumers should pass runtime catalogs through:
+
+- `createProfileCatalog({ profileId, profileVersion, checksum, nodeTypes, linkTypes })`
+- `getYamlAutocompleteSuggestions(context, { profileCatalog })`
+
+`profileVersion` + `checksum` are preserved for deterministic cache invalidation in adapters.
 
 ## Repository Layout
 

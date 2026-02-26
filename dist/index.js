@@ -3,68 +3,39 @@ import YAML from "js-yaml";
 var INDENT_SIZE = 2;
 var FORBIDDEN_AUTOCOMPLETE_KEYS = /* @__PURE__ */ new Set(["id"]);
 var ROOT_SECTION_ALIASES = /* @__PURE__ */ new Map([["edges", "links"]]);
-var NODE_TYPE_SUGGESTIONS = [
-  "router",
-  "switch",
-  "mpls",
-  "vpn",
-  "firewall",
-  "cloud",
-  "datacenter",
-  "azure",
-  "internet",
-  "cpe",
-  "database",
-  "server",
-  "host",
-  "ran",
-  "radio",
-  "splitter",
-  "devices",
-  "satelliteuplink",
-  "satellite",
-  "broadcast",
-  "lan",
-  "diagnostics",
-  "analytics",
-  "monitor",
-  "logging",
-  "iam",
-  "idea",
-  "tools",
-  "cctv",
-  "process",
-  "cooling",
-  "security",
-  "console",
-  "gis",
-  "city",
-  "settlement",
-  "sdu",
-  "mdu",
-  "company",
-  "farm",
-  "airport",
-  "mine",
-  "fieldservice",
-  "facility",
-  "energy",
-  "transmission",
-  "ip",
-  "mobilecore",
-  "access",
-  "operation",
-  "controller",
-  "product",
-  "consumer",
-  "fortinet",
-  "juniper",
-  "ericsson",
-  "huawei",
-  "cisco",
-  "mikrotik"
-];
-var LINK_TYPE_SUGGESTIONS = ["directed", "undirected", "association", "dependency", "generalization", "none"];
+var NODE_TYPE_SUGGESTIONS = [];
+var LINK_TYPE_SUGGESTIONS = [];
+var EMPTY_PROFILE_CATALOG = Object.freeze({
+  schemaVersion: "v1",
+  profileId: "",
+  profileVersion: 0,
+  checksum: "",
+  nodeTypes: [],
+  linkTypes: []
+});
+function normalizeCatalogValues(values = []) {
+  const result = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const raw of values) {
+    const normalized = String(raw || "").trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+}
+function createProfileCatalog(input = {}) {
+  return {
+    schemaVersion: String(input.schemaVersion || "v1"),
+    profileId: String(input.profileId || ""),
+    profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
+    checksum: String(input.checksum || ""),
+    nodeTypes: normalizeCatalogValues(input.nodeTypes),
+    linkTypes: normalizeCatalogValues(input.linkTypes)
+  };
+}
 var DEFAULT_AUTOCOMPLETE_SPEC = {
   rootSections: ["nodes", "links"],
   node: {
@@ -380,8 +351,9 @@ function endpointSuggestions(prefix, entities, endpoint) {
 }
 function getYamlAutocompleteSuggestions(context, meta = {}) {
   const spec = meta.spec || DEFAULT_AUTOCOMPLETE_SPEC;
-  const nodeTypes = Array.isArray(meta.nodeTypeSuggestions) && meta.nodeTypeSuggestions.length ? meta.nodeTypeSuggestions : NODE_TYPE_SUGGESTIONS;
-  const linkTypes = Array.isArray(meta.linkTypeSuggestions) && meta.linkTypeSuggestions.length ? meta.linkTypeSuggestions : LINK_TYPE_SUGGESTIONS;
+  const profileCatalog = createProfileCatalog(meta.profileCatalog || {});
+  const nodeTypes = Array.isArray(meta.nodeTypeSuggestions) && meta.nodeTypeSuggestions.length ? normalizeCatalogValues(meta.nodeTypeSuggestions) : profileCatalog.nodeTypes.length ? profileCatalog.nodeTypes : NODE_TYPE_SUGGESTIONS;
+  const linkTypes = Array.isArray(meta.linkTypeSuggestions) && meta.linkTypeSuggestions.length ? normalizeCatalogValues(meta.linkTypeSuggestions) : profileCatalog.linkTypes.length ? profileCatalog.linkTypes : LINK_TYPE_SUGGESTIONS;
   if (context.kind === "nodeTypeValue") {
     return nodeTypes.filter((item) => item.startsWith((context.prefix || "").toLowerCase()));
   }
@@ -581,6 +553,7 @@ function markerFromDiagnostic(monaco, model, diagnostic) {
 }
 export {
   DEFAULT_AUTOCOMPLETE_SPEC,
+  EMPTY_PROFILE_CATALOG,
   INDENT_SIZE,
   LINK_TYPE_SUGGESTIONS,
   NODE_TYPE_SUGGESTIONS,
@@ -590,11 +563,13 @@ export {
   collectRootSectionPresence,
   computeIndentBackspaceDeleteCount,
   createEmptyCompletionMetaCache,
+  createProfileCatalog,
   getYamlAutocompleteContext,
   getYamlAutocompleteSuggestions,
   inferYamlSection,
   isRootBoundaryEmptyLine,
   lineIndent,
-  markerFromDiagnostic
+  markerFromDiagnostic,
+  normalizeCatalogValues
 };
 //# sourceMappingURL=index.js.map

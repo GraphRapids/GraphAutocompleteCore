@@ -4,6 +4,7 @@ import {
   buildAutocompleteMetadata,
   buildAutocompleteRuntimeFromMeta,
   computeIndentBackspaceDeleteCount,
+  createProfileCatalog,
   DEFAULT_AUTOCOMPLETE_SPEC,
   getYamlAutocompleteContext,
   getYamlAutocompleteSuggestions,
@@ -64,5 +65,47 @@ describe('graph autocomplete core', () => {
     expect(computeIndentBackspaceDeleteCount('    ', 5, INDENT_SIZE)).toBe(2);
     expect(computeIndentBackspaceDeleteCount('      ', 7, INDENT_SIZE)).toBe(2);
     expect(computeIndentBackspaceDeleteCount('  text', 3, INDENT_SIZE)).toBe(0);
+  });
+
+  it('uses profile-driven node and link type catalogs', () => {
+    const profileCatalog = createProfileCatalog({
+      profileId: 'team-a',
+      profileVersion: 3,
+      checksum: 'abc',
+      nodeTypes: ['Router', 'Gateway'],
+      linkTypes: ['Directed', 'Association'],
+    });
+
+    const nodeSuggestions = getYamlAutocompleteSuggestions(
+      { kind: 'nodeTypeValue', section: 'nodes', prefix: 'g' },
+      { profileCatalog }
+    );
+    const linkSuggestions = getYamlAutocompleteSuggestions(
+      { kind: 'linkTypeValue', section: 'links', prefix: 'a' },
+      { profileCatalog }
+    );
+
+    expect(nodeSuggestions).toEqual(['gateway']);
+    expect(linkSuggestions).toEqual(['association']);
+  });
+
+  it('respects explicit suggestion arrays over profile catalogs', () => {
+    const profileCatalog = createProfileCatalog({
+      profileId: 'team-a',
+      profileVersion: 3,
+      checksum: 'abc',
+      nodeTypes: ['router'],
+      linkTypes: ['directed'],
+    });
+
+    const nodeSuggestions = getYamlAutocompleteSuggestions(
+      { kind: 'nodeTypeValue', section: 'nodes', prefix: '' },
+      {
+        profileCatalog,
+        nodeTypeSuggestions: ['edge-device'],
+      }
+    );
+
+    expect(nodeSuggestions).toEqual(['edge-device']);
   });
 });

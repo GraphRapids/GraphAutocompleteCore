@@ -14,6 +14,27 @@ Use this file as a running log between work sessions.
 
 ## Current
 
+### 2026-02-26
+- Summary: Switched autocomplete type suggestions to explicit profile-driven catalogs.
+- Changes:
+  - Removed hardcoded node/link type catalogs from core behavior.
+  - Added `createProfileCatalog`, `normalizeCatalogValues`, and `EMPTY_PROFILE_CATALOG`.
+  - Updated suggestion resolution to prioritize profile catalogs and explicit overrides.
+  - Added unit tests proving profile-driven suggestion behavior.
+- Files touched:
+  - `src/core/graphAutocompleteCore.js`
+  - `src/core/graphAutocompleteCore.test.js`
+  - `README.md`
+  - `PROJECT_CONTEXT.md`
+  - `SESSION_NOTES.md`
+- Tests run:
+  - `npm test`
+  - `npm run build`
+  - `npm pack`
+- Known issues: none.
+- Next steps:
+  - Keep adapters aligned on `profileVersion` + `checksum` invalidation semantics.
+
 ### 2026-02-25
 - Summary: Initialized GraphAutocompleteCore and migrated autocomplete core logic from GraphYamlEditor harness.
 - Changes:

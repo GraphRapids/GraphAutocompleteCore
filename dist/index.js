@@ -7,11 +7,18 @@ var NODE_TYPE_SUGGESTIONS = [];
 var LINK_TYPE_SUGGESTIONS = [];
 var EMPTY_PROFILE_CATALOG = Object.freeze({
   schemaVersion: "v1",
+  graphTypeId: "",
+  graphTypeVersion: 0,
+  graphTypeChecksum: "",
+  runtimeChecksum: "",
   profileId: "",
   profileVersion: 0,
+  profileChecksum: "",
+  iconsetResolutionChecksum: "",
   checksum: "",
   nodeTypes: [],
-  linkTypes: []
+  linkTypes: [],
+  iconsetSources: []
 });
 function normalizeCatalogValues(values = []) {
   const result = [];
@@ -27,13 +34,37 @@ function normalizeCatalogValues(values = []) {
   return result;
 }
 function createProfileCatalog(input = {}) {
+  const graphTypeId = String(input.graphTypeId || input.profileId || "");
+  const graphTypeVersion = Number.isFinite(input.graphTypeVersion) ? Number(input.graphTypeVersion) : Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0;
+  const graphTypeChecksum = String(input.graphTypeChecksum || input.profileChecksum || input.checksum || "");
+  const runtimeChecksum = String(input.runtimeChecksum || "");
+  const profileChecksum = graphTypeChecksum;
+  const checksum = String(input.checksum || profileChecksum || "");
+  const iconsetSources = Array.isArray(input.iconsetSources) ? input.iconsetSources.map((item) => {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+    const iconsetId = String(item.iconsetId || "").trim().toLowerCase();
+    const iconsetVersion = Number.isFinite(item.iconsetVersion) ? Number(item.iconsetVersion) : 0;
+    if (!iconsetId || iconsetVersion <= 0) {
+      return null;
+    }
+    return { iconsetId, iconsetVersion };
+  }).filter(Boolean) : [];
   return {
     schemaVersion: String(input.schemaVersion || "v1"),
-    profileId: String(input.profileId || ""),
-    profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
-    checksum: String(input.checksum || ""),
+    graphTypeId,
+    graphTypeVersion,
+    graphTypeChecksum,
+    runtimeChecksum,
+    profileId: graphTypeId,
+    profileVersion: graphTypeVersion,
+    profileChecksum,
+    iconsetResolutionChecksum: String(input.iconsetResolutionChecksum || ""),
+    checksum,
     nodeTypes: normalizeCatalogValues(input.nodeTypes),
-    linkTypes: normalizeCatalogValues(input.linkTypes)
+    linkTypes: normalizeCatalogValues(input.linkTypes),
+    iconsetSources
   };
 }
 var DEFAULT_AUTOCOMPLETE_SPEC = {

@@ -9,6 +9,10 @@ export const NODE_TYPE_SUGGESTIONS = [];
 export const LINK_TYPE_SUGGESTIONS = [];
 export const EMPTY_PROFILE_CATALOG = Object.freeze({
   schemaVersion: 'v1',
+  graphTypeId: '',
+  graphTypeVersion: 0,
+  graphTypeChecksum: '',
+  runtimeChecksum: '',
   profileId: '',
   profileVersion: 0,
   profileChecksum: '',
@@ -36,7 +40,15 @@ export function normalizeCatalogValues(values = []) {
 }
 
 export function createProfileCatalog(input = {}) {
-  const profileChecksum = String(input.profileChecksum || input.checksum || '');
+  const graphTypeId = String(input.graphTypeId || input.profileId || '');
+  const graphTypeVersion = Number.isFinite(input.graphTypeVersion)
+    ? Number(input.graphTypeVersion)
+    : Number.isFinite(input.profileVersion)
+      ? Number(input.profileVersion)
+      : 0;
+  const graphTypeChecksum = String(input.graphTypeChecksum || input.profileChecksum || input.checksum || '');
+  const runtimeChecksum = String(input.runtimeChecksum || '');
+  const profileChecksum = graphTypeChecksum;
   const checksum = String(input.checksum || profileChecksum || '');
   const iconsetSources = Array.isArray(input.iconsetSources)
     ? input.iconsetSources
@@ -58,8 +70,12 @@ export function createProfileCatalog(input = {}) {
 
   return {
     schemaVersion: String(input.schemaVersion || 'v1'),
-    profileId: String(input.profileId || ''),
-    profileVersion: Number.isFinite(input.profileVersion) ? Number(input.profileVersion) : 0,
+    graphTypeId,
+    graphTypeVersion,
+    graphTypeChecksum,
+    runtimeChecksum,
+    profileId: graphTypeId,
+    profileVersion: graphTypeVersion,
     profileChecksum,
     iconsetResolutionChecksum: String(input.iconsetResolutionChecksum || ''),
     checksum,

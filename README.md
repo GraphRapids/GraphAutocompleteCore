@@ -23,15 +23,14 @@ Reusable editor-agnostic autocomplete core for GraphRapids YAML graph authoring.
 - Completion command behavior helpers (`resolveCompletionCommandBehavior`)
 - Pure JavaScript logic with no React/Monaco runtime dependency
 
-## Profile Catalog Contract
+## Runtime Catalog Contract
 
 The core no longer owns hardcoded node/link catalogs. Consumers should pass runtime catalogs through:
 
-- `createProfileCatalog({ profileId, profileVersion, checksum, nodeTypes, linkTypes })`
+- `createProfileCatalog({ graphTypeId|profileId, graphTypeVersion|profileVersion, graphTypeChecksum|profileChecksum|checksum, nodeTypes, linkTypes, iconSetResolutionChecksum, iconSetSources })`
 - `getYamlAutocompleteSuggestions(context, { profileCatalog })`
 
-`profileVersion` + `checksum` are preserved for deterministic cache invalidation in adapters.
-V2 runtime catalogs may additionally provide `profileChecksum`, `iconSetResolutionChecksum`, and `iconSetSources`.
+The helper normalizes graph-type/profile aliases into one deterministic shape and preserves version/checksum fields for adapter cache invalidation.
 
 ## Repository Layout
 

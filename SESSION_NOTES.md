@@ -14,6 +14,25 @@ Use this file as a running log between work sessions.
 
 ## Current
 
+### 2026-02-27
+- Summary: Normalized icon-set runtime catalog naming in source and generated artifacts.
+- Changes:
+  - Standardized catalog fields to `iconSet*` naming in core normalization logic.
+  - Rebuilt package outputs (`dist/index.js`, `dist/index.js.map`) with canonical names.
+  - Updated project context notes for naming conventions.
+- Files touched:
+  - `src/core/graphAutocompleteCore.js`
+  - `dist/index.js`
+  - `dist/index.js.map`
+  - `PROJECT_CONTEXT.md`
+- Tests run:
+  - `npm test` (14 passed)
+  - `npm run build`
+  - `npm pack`
+- Known issues: none.
+- Next steps:
+  - Keep GraphYamlEditor/GraphEditor package sync flow aligned after future catalog contract changes.
+
 ### 2026-02-26
 - Summary: Switched autocomplete type suggestions to explicit profile-driven catalogs.
 - Changes:

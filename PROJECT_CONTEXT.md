@@ -25,6 +25,12 @@ Core outputs are plain data structures:
 - utility helpers for indentation/backspace behavior
 - profile catalog helpers (`createProfileCatalog`, `normalizeCatalogValues`)
 
+Catalog naming conventions:
+- Runtime metadata fields are camelCase and icon-set aligned:
+  - `iconSetResolutionChecksum`
+  - `iconSetSources`
+  - source entries: `iconSetId`, `iconSetVersion`
+
 No editor-specific objects should leak from core logic.
 
 ## Integration Notes
